@@ -16,13 +16,20 @@ const AGENT_NAME = 'event-dispatcher';
 // Mapping: tipo de evento → lista de agentes a invocar.
 // Cuando añadas un agente nuevo, lo enchufas aquí.
 const EVENT_HANDLERS: Record<string, string[]> = {
-  'lead.created':   ['email-enrichment'],
-  'lead.enriched':  ['lead-qualifier'],
-  'lead.qualified': ['email-captacion', 'whatsapp-outreach'],
-  // futuros:
-  // 'lead.contacted': ['crm-pipeline'],
-  // 'meeting.completed': ['generador-presupuesto'],
-  // 'payment.received': ['onboarding'],
+  // D1 — Captación
+  'lead.created':      ['email-enrichment'],
+  'lead.enriched':     ['lead-qualifier'],
+  'lead.qualified':    ['email-captacion', 'whatsapp-outreach'],
+  'lead.contacted':    ['crm-pipeline'],
+  // D2 — Ventas
+  'meeting.scheduled': ['briefing-reunion'],
+  'meeting.completed': ['generador-presupuesto'],
+  // futuros (D3 Producción):
+  // 'payment.received':       ['onboarding'],
+  // 'onboarding.completed':   ['content-generator'],
+  // 'content.generated':      ['web-builder'],
+  // 'web.deployed':           ['qa-automatico'],
+  // 'qa.passed':              ['google-business', 'chatbot-embed'],
 };
 
 interface DispatchPayload {
@@ -44,7 +51,11 @@ function buildAgentBody(agent: string, event: DispatchPayload): Record<string, u
     case 'lead-qualifier':
     case 'email-captacion':
     case 'whatsapp-outreach':
+    case 'crm-pipeline':
       return { lead_id: event.lead_id };
+    case 'briefing-reunion':
+    case 'generador-presupuesto':
+      return { lead_id: event.lead_id, payload: event.payload };
     default:
       return { event_id: event.event_id, payload: event.payload };
   }
