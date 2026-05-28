@@ -1,0 +1,12 @@
+{
+  "name": "@agutidesigns/agutidesigns-public",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Rediseño futuro de agutidesigns.io. Por ahora stub.",
+  "scripts": {
+    "dev": "echo 'agutidesigns-public no implementado todavía.' && exit 0",
+    "build": "echo 'agutidesigns-public stub' && exit 0",
+    "lint": "echo 'noop' && exit 0",
+    "typecheck": "echo 'noop' && exit 0"
+  }
+}

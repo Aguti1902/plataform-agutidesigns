@@ -1,0 +1,12 @@
+{
+  "name": "@agutidesigns/lokify-public",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Landing + panel cliente de lokify.es (pendiente, se construye en próximas semanas)",
+  "scripts": {
+    "dev": "echo 'lokify-public no implementado todavía (día 1). Stub solo.' && exit 0",
+    "build": "echo 'lokify-public stub' && exit 0",
+    "lint": "echo 'noop' && exit 0",
+    "typecheck": "echo 'noop' && exit 0"
+  }
+}

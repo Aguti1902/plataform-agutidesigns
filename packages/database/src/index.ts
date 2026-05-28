@@ -1,0 +1,20 @@
+export type { Database } from './types';
+export type {
+  Marca,
+  LeadStatus,
+  WebStatus,
+  PlanTipo,
+  FacturaStatus,
+  AgentStatus,
+  EventType,
+  Lead,
+  Cliente,
+  Web,
+  Presupuesto,
+  Factura,
+  Event,
+  AgentRun,
+  AgentConfig,
+  Conversation,
+  Nicho,
+} from './aliases';
