@@ -16,8 +16,9 @@ const AGENT_NAME = 'event-dispatcher';
 // Mapping: tipo de evento → lista de agentes a invocar.
 // Cuando añadas un agente nuevo, lo enchufas aquí.
 const EVENT_HANDLERS: Record<string, string[]> = {
-  'lead.created': ['lead-qualifier'],
-  'lead.qualified': ['email-captacion'],
+  'lead.created':   ['email-enrichment'],
+  'lead.enriched':  ['lead-qualifier'],
+  'lead.qualified': ['email-captacion', 'whatsapp-outreach'],
   // futuros:
   // 'lead.contacted': ['crm-pipeline'],
   // 'meeting.completed': ['generador-presupuesto'],
