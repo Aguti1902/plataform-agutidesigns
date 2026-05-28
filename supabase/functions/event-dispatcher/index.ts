@@ -24,12 +24,12 @@ const EVENT_HANDLERS: Record<string, string[]> = {
   // D2 — Ventas
   'meeting.scheduled': ['briefing-reunion'],
   'meeting.completed': ['generador-presupuesto'],
-  // futuros (D3 Producción):
-  // 'payment.received':       ['onboarding'],
-  // 'onboarding.completed':   ['content-generator'],
-  // 'content.generated':      ['web-builder'],
-  // 'web.deployed':           ['qa-automatico'],
-  // 'qa.passed':              ['google-business', 'chatbot-embed'],
+  // D3 — Producción
+  'payment.received':     ['onboarding'],
+  'onboarding.completed': ['content-generator'],
+  'content.generated':    ['web-builder'],
+  'web.deployed':         ['qa-automatico'],
+  'qa.passed':            ['google-business', 'chatbot-embed'],
 };
 
 interface DispatchPayload {
@@ -56,6 +56,15 @@ function buildAgentBody(agent: string, event: DispatchPayload): Record<string, u
     case 'briefing-reunion':
     case 'generador-presupuesto':
       return { lead_id: event.lead_id, payload: event.payload };
+    case 'onboarding':
+      return { lead_id: event.lead_id, cliente_id: event.cliente_id, payload: event.payload };
+    case 'content-generator':
+      return { cliente_id: event.cliente_id, lead_id: event.lead_id, payload: event.payload };
+    case 'web-builder':
+    case 'qa-automatico':
+    case 'google-business':
+    case 'chatbot-embed':
+      return { web_id: event.web_id, cliente_id: event.cliente_id, payload: event.payload };
     default:
       return { event_id: event.event_id, payload: event.payload };
   }
