@@ -11,8 +11,8 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
 const AGENT_NAME = 'scraper-leads';
-const PLACES_TEXT_SEARCH = 'https://maps.googleapis.com/maps/api/place/textsearch/json';
-const PLACES_DETAILS = 'https://maps.googleapis.com/maps/api/place/details/json';
+// Places API (New) — endpoint único, devuelve todos los campos en una sola llamada
+const PLACES_SEARCH_TEXT = 'https://places.googleapis.com/v1/places:searchText';
 const DEFAULT_MAX = 20;
 
 interface ScrapeRequest {
@@ -24,49 +24,40 @@ interface ScrapeRequest {
 }
 
 interface PlaceResult {
-  place_id: string;
-  name: string;
-  formatted_address?: string;
-  website?: string;
-  formatted_phone_number?: string;
-  international_phone_number?: string;
-  url?: string;
+  id: string;
+  displayName?: { text?: string };
+  formattedAddress?: string;
+  websiteUri?: string;
+  nationalPhoneNumber?: string;
+  internationalPhoneNumber?: string;
+  googleMapsUri?: string;
   rating?: number;
-  user_ratings_total?: number;
-  business_status?: string;
+  userRatingCount?: number;
+  businessStatus?: string;
 }
 
-async function textSearch(query: string, key: string): Promise<PlaceResult[]> {
-  const url = new URL(PLACES_TEXT_SEARCH);
-  url.searchParams.set('query', query);
-  url.searchParams.set('key', key);
-  url.searchParams.set('language', 'es');
-  url.searchParams.set('region', 'es');
-  const res = await fetch(url.toString());
-  if (!res.ok) throw new Error(`Places text search HTTP ${res.status}`);
-  const data = await res.json();
-  if (data.status !== 'OK' && data.status !== 'ZERO_RESULTS') {
-    throw new Error(`Places text search error: ${data.status} ${data.error_message ?? ''}`);
+async function searchText(query: string, max: number, key: string): Promise<PlaceResult[]> {
+  const res = await fetch(PLACES_SEARCH_TEXT, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Goog-Api-Key': key,
+      'X-Goog-FieldMask':
+        'places.id,places.displayName,places.formattedAddress,places.websiteUri,places.nationalPhoneNumber,places.internationalPhoneNumber,places.googleMapsUri,places.rating,places.userRatingCount,places.businessStatus',
+    },
+    body: JSON.stringify({
+      textQuery: query,
+      languageCode: 'es',
+      regionCode: 'ES',
+      pageSize: Math.min(max, 20),
+    }),
+  });
+  if (!res.ok) {
+    const errBody = await res.text();
+    throw new Error(`Places searchText HTTP ${res.status}: ${errBody}`);
   }
-  return (data.results ?? []) as PlaceResult[];
-}
-
-async function placeDetails(placeId: string, key: string): Promise<PlaceResult> {
-  const url = new URL(PLACES_DETAILS);
-  url.searchParams.set('place_id', placeId);
-  url.searchParams.set(
-    'fields',
-    'place_id,name,formatted_address,website,formatted_phone_number,international_phone_number,url,rating,user_ratings_total,business_status',
-  );
-  url.searchParams.set('key', key);
-  url.searchParams.set('language', 'es');
-  const res = await fetch(url.toString());
-  if (!res.ok) throw new Error(`Places details HTTP ${res.status}`);
   const data = await res.json();
-  if (data.status !== 'OK') {
-    throw new Error(`Places details error: ${data.status} ${data.error_message ?? ''}`);
-  }
-  return data.result as PlaceResult;
+  return (data.places ?? []) as PlaceResult[];
 }
 
 function normalizePhone(p?: string): string | null {
@@ -128,17 +119,16 @@ Deno.serve(async (req) => {
   let totalSeen = 0;
 
   try {
-    const initial = await textSearch(query, placesKey);
-    totalSeen = initial.length;
-    const limited = initial.slice(0, max);
+    const places = await searchText(query, max, placesKey);
+    totalSeen = places.length;
 
-    for (const place of limited) {
+    for (const place of places) {
+      const name = place.displayName?.text ?? '(sin nombre)';
       try {
-        // Dedup por place_id
         const { data: existing } = await supabase
           .from('leads')
           .select('id')
-          .eq('google_place_id', place.place_id)
+          .eq('google_place_id', place.id)
           .maybeSingle();
 
         if (existing) {
@@ -146,10 +136,7 @@ Deno.serve(async (req) => {
           continue;
         }
 
-        const details = await placeDetails(place.place_id, placesKey);
-
-        // Filtro de negocio: skip si tiene web (no es nuestro target)
-        if (details.website && details.website.length > 0) {
+        if (place.websiteUri && place.websiteUri.length > 0) {
           skippedHasWebsite++;
           continue;
         }
@@ -157,29 +144,29 @@ Deno.serve(async (req) => {
         const { error: insertErr } = await supabase.from('leads').insert({
           marca,
           source: 'google_maps',
-          nombre_negocio: details.name ?? place.name,
+          nombre_negocio: name,
           sector: body.sector,
           ciudad: body.ciudad,
           provincia: body.provincia ?? null,
-          telefono: normalizePhone(details.formatted_phone_number ?? details.international_phone_number),
-          website_actual: details.website ?? null,
-          google_place_id: place.place_id,
-          google_maps_url: details.url ?? null,
+          telefono: normalizePhone(place.nationalPhoneNumber ?? place.internationalPhoneNumber),
+          website_actual: place.websiteUri ?? null,
+          google_place_id: place.id,
+          google_maps_url: place.googleMapsUri ?? null,
           raw_data: {
-            address: details.formatted_address,
-            rating: details.rating,
-            user_ratings_total: details.user_ratings_total,
-            business_status: details.business_status,
+            address: place.formattedAddress,
+            rating: place.rating,
+            user_ratings_total: place.userRatingCount,
+            business_status: place.businessStatus,
           },
         });
 
         if (insertErr) {
-          errors.push(`${place.name}: ${insertErr.message}`);
+          errors.push(`${name}: ${insertErr.message}`);
         } else {
           inserted++;
         }
       } catch (err) {
-        errors.push(`${place.name}: ${err instanceof Error ? err.message : err}`);
+        errors.push(`${name}: ${err instanceof Error ? err.message : err}`);
       }
     }
   } catch (err) {
