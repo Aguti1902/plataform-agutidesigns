@@ -40,6 +40,7 @@ interface DispatchPayload {
 // Cada agente espera su propio body. Aquí lo armamos por agente.
 function buildAgentBody(agent: string, event: DispatchPayload): Record<string, unknown> {
   switch (agent) {
+    case 'email-enrichment':
     case 'lead-qualifier':
     case 'email-captacion':
     case 'whatsapp-outreach':
